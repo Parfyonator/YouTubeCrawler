@@ -152,7 +152,7 @@ def initialization():
 
     # backup current database
     with open('Backup/prev.csv', 'w') as prev:
-        for line in open('Results/data.csv', 'r'):
+        for line in open('Results/data.csv', 'r', encoding='utf-8'):
             prev.write(line)
 
     # with open('./Results/ChannelsWithData/' + str(curr_iter) + '.csv', 'r', encoding='utf-8') as inp:
@@ -169,7 +169,7 @@ def initialization():
 
     if user_respond == 2:
         # with open('./Results/NewChannels/' + str(curr_iter) + '.csv', 'r') as inp:
-        with open('./Results/NewChannels/new.csv', 'r') as inp:
+        with open('./Results/new.csv', 'r') as inp:
             counter = 0
             for line in inp:
                 if line.find('/user/') > -1:
@@ -384,7 +384,7 @@ def summary():
     #         skiped_urls.write(elem + '\n')
 
     # with open('./Results/Skipped/' + str(curr_iter) + '.csv', 'w') as output:
-    with open('./Results/Skipped/skipped.csv', 'w') as output:
+    with open('./Results/skipped.csv', 'w') as output:
         all_lines = set()
         for i in range(processec_N):
             path = './Temp/Skipped/' + str(i) + '.csv'

@@ -1,11 +1,12 @@
-from bs4 import BeautifulSoup
-
 import ssl
 from urllib import request
 import requests
 import json
 from typing import List, Dict, Any
 from logging import getLogger
+
+from bs4 import BeautifulSoup
+import langdetect
 
 
 logger = getLogger(__name__)
@@ -27,6 +28,22 @@ def parse_item_renderer(item_renderer: Dict[str, Any]) -> str:
                         ["url"]
 
 
+def get_initial_data(url: str) -> Dict[str, Any]:
+    response = request.urlopen(url, context=ssl._create_unverified_context())
+    content = response.read()
+
+    soup = BeautifulSoup(content, 'html.parser')
+
+    body = soup.find("body")
+    scripts = body.find_all("script")
+    initial_data_script = scripts[1].contents[0].strip()
+    first_line = initial_data_script.split('\n')[0]
+    rhs = first_line[first_line.find('=')+1:].strip()
+    rhs = rhs[:-1] # remove ';' at the end
+    
+    return json.loads(rhs)
+
+
 def parse_section_renderer(section_renderer: Dict[str, Any]) -> List[str]:
     urls = []
 
@@ -42,24 +59,9 @@ def parse_section_renderer(section_renderer: Dict[str, Any]) -> List[str]:
     
     return urls
 
-def get_default_seeds():
+def get_default_seeds(yt_initial_data: Dict[str, Any]) -> List[str]:
     '''Get list of default channels from www.youtube.com and return it.'''
     urls = []
-
-    response = request.urlopen('https://www.youtube.com', context=ssl._create_unverified_context())
-    content = response.read()
-
-    soup = BeautifulSoup(content, 'html.parser')
-
-    body = soup.find("body")
-    scripts = body.find_all("script")
-    initial_data_script = scripts[1].contents[0].strip()
-    first_line = initial_data_script.split('\n')[0]
-    rhs = first_line[first_line.find('=')+1:].strip()
-    rhs = rhs[:-1] # remove ';' at the end
-    
-    # conver rhs into dictionary
-    yt_initial_data = json.loads(rhs)
 
     try:
         for item in yt_initial_data["contents"]\
@@ -83,7 +85,7 @@ def get_default_seeds():
     return list(set(urls))
 
 
-def get_featured_channels(channel_url: str) -> List[str]:
+def get_featured_channels(yt_initial_data: Dict[str, Any]) -> List[str]:
     '''Get list of featured channels for given channel.
 
     Args:
@@ -95,32 +97,38 @@ def get_featured_channels(channel_url: str) -> List[str]:
     '''
     featured_channels = []
 
-    response = request.urlopen(
-        f'{channel_url}/channels',
-        context=ssl._create_unverified_context()
-    )
-    content = response.read()
-
-    soup = BeautifulSoup(content, 'html.parser')
-
-    body = soup.find("body")
-    scripts = body.find_all("script")
-    initial_data_script = scripts[1].contents[0].strip()
-    first_line = initial_data_script.split('\n')[0]
-    rhs = first_line[first_line.find('=')+1:].strip()
-    rhs = rhs[:-1] # remove ';' at the end
-
-    # conver rhs into dictionary
-    yt_initial_data = json.loads(rhs)
     try:
         featured_channels = [
             f'https://www.youtube.com{item["miniChannelRenderer"]["navigationEndpoint"]["commandMetadata"]["webCommandMetadata"]["url"]}'
             for item in yt_initial_data["contents"]["twoColumnBrowseResultsRenderer"]["secondaryContents"]["browseSecondaryContentsRenderer"]["contents"][0]["verticalChannelSectionRenderer"]["items"]
         ]
-    except:
+    except Exception as e:
         logger.error(f'Unable to get featured channels due to exception {e}')
     
     return list(set(featured_channels))
+
+
+def get_tags(yt_initial_data: Dict[str, Any]) -> List[str]:
+    tags = []
+
+    try:
+        tags = yt_initial_data["microformat"]["microformatDataRenderer"]["tags"]
+    except Exception as e:
+        logger.error(f'Unable to get tags. Exception caught: {e}')
+
+    return tags
+
+
+def get_subscription_count(yt_initial_data: Dict[str, Any]) -> str:
+    return yt_initial_data["header"]["c4TabbedHeaderRenderer"]["subscriberCountText"]["simpleText"]
+
+
+def get_description(yt_initial_data: Dict[str, Any]) -> str:
+    return yt_initial_data["metadata"]["channelMetadataRenderer"]["description"]
+
+
+def detect_language(text: str) -> str:
+    return langdetect.detect(text)
 
 
 def remove_duplicate(filename):
@@ -199,5 +207,16 @@ def create_temp() -> None:
             os.makedirs('Temp/' + subdir)
 
 if __name__ == "__main__":
-    from pprint import pprint
-    pprint(get_featured_channels('https://www.youtube.com/c/javidx9'))
+    yt_initial_data = get_initial_data('https://www.youtube.com/c/javidx9')
+
+    print('Featured channels:')
+    print(json.dumps(get_featured_channels(yt_initial_data), indent=4))
+
+    print('Tags:')
+    print(json.dumps(get_tags(yt_initial_data), indent=4))
+
+    print('Subscription count:')
+    print(f'    {get_subscription_count(yt_initial_data)}')
+
+    print('Language:')
+    print(f'    {detect_language(get_description(yt_initial_data))}')

@@ -1,8 +1,7 @@
 import ssl
 from urllib import request
-import requests
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from logging import getLogger
 
 from bs4 import BeautifulSoup
@@ -12,123 +11,139 @@ import langdetect
 logger = getLogger(__name__)
 
 
-def full_url(relative_url: str) -> str:
-    return f'https://www.youtube.com{relative_url}'
+class YTChannel:
+    """Class for YouTube channel content processing.
+    """
+    def __init__(self, channel_url):
+        yt_initial_data, soup = YTChannel.get_initial_data(channel_url)
 
+        self.yt_initial_data = yt_initial_data
+        self.soup = soup
 
-def parse_item_renderer(item_renderer: Dict[str, Any]) -> str:
-    return item_renderer["richItemRenderer"]\
-                        ["content"]\
-                        ["videoRenderer"]\
-                        ["longBylineText"]\
-                        ["runs"][0]\
-                        ["navigationEndpoint"]\
-                        ["commandMetadata"]\
-                        ["webCommandMetadata"]\
-                        ["url"]
+        self.url = channel_url
+        self.description = self.get_description()
+        self.lang = YTChannel.detect_language(self.description)
+        self.subscription_count = self.get_subscription_count()
+        self.tags = self.get_tags()
+        self.featured_channels = self.get_featured_channels()
 
+    @staticmethod
+    def full_url(relative_url: str) -> str:
+        return f'https://www.youtube.com{relative_url}'
 
-def get_initial_data(url: str) -> Dict[str, Any]:
-    response = request.urlopen(url, context=ssl._create_unverified_context())
-    content = response.read()
+    @staticmethod
+    def parse_item_renderer(item_renderer: Dict[str, Any]) -> str:
+        return item_renderer["richItemRenderer"]\
+                            ["content"]\
+                            ["videoRenderer"]\
+                            ["longBylineText"]\
+                            ["runs"][0]\
+                            ["navigationEndpoint"]\
+                            ["commandMetadata"]\
+                            ["webCommandMetadata"]\
+                            ["url"]
 
-    soup = BeautifulSoup(content, 'html.parser')
+    @staticmethod
+    def get_initial_data(url: str) -> Tuple[Dict[str, Any], BeautifulSoup]:
+        response = request.urlopen(url, context=ssl._create_unverified_context())
+        content = response.read()
 
-    body = soup.find("body")
-    scripts = body.find_all("script")
-    initial_data_script = scripts[1].contents[0].strip()
-    first_line = initial_data_script.split('\n')[0]
-    rhs = first_line[first_line.find('=')+1:].strip()
-    rhs = rhs[:-1] # remove ';' at the end
-    
-    return json.loads(rhs)
+        soup = BeautifulSoup(content, 'html.parser')
 
+        body = soup.find("body")
+        scripts = body.find_all("script")
+        initial_data_script = scripts[1].contents[0].strip()
+        first_line = initial_data_script.split('\n')[0]
+        rhs = first_line[first_line.find('=')+1:].strip()
+        rhs = rhs[:-1] # remove ';' at the end
+        
+        return json.loads(rhs), soup
 
-def parse_section_renderer(section_renderer: Dict[str, Any]) -> List[str]:
-    urls = []
+    @staticmethod
+    def parse_section_renderer(section_renderer: Dict[str, Any]) -> List[str]:
+        urls = []
 
-    if "richShelfRenderer" not in section_renderer["richSectionRenderer"]["content"]:
+        if "richShelfRenderer" not in section_renderer["richSectionRenderer"]["content"]:
+            return urls
+
+        for item_renderer in section_renderer["richSectionRenderer"]\
+                                             ["content"]\
+                                             ["richShelfRenderer"]\
+                                             ["contents"]\
+        :
+            urls.append(parse_item_renderer(item_renderer))
+        
         return urls
 
-    for item_renderer in section_renderer["richSectionRenderer"]\
-                                         ["content"]\
-                                         ["richShelfRenderer"]\
-                                         ["contents"]\
-    :
-        urls.append(parse_item_renderer(item_renderer))
-    
-    return urls
+    @staticmethod
+    def get_default_seeds() -> List[str]:
+        '''Get list of default channels from www.youtube.com and return it.'''
+        urls = []
 
-def get_default_seeds(yt_initial_data: Dict[str, Any]) -> List[str]:
-    '''Get list of default channels from www.youtube.com and return it.'''
-    urls = []
+        yt_initial_data, _ = YTChannel.get_initial_data('https://www.youtube.com')
 
-    try:
-        for item in yt_initial_data["contents"]\
-                                   ["twoColumnBrowseResultsRenderer"]\
-                                   ["tabs"][0]\
-                                   ["tabRenderer"]\
-                                   ["content"]\
-                                   ["richGridRenderer"]\
-                                   ["contents"]\
-        :
-            if "richItemRenderer" in item:
-                urls.append(full_url(parse_item_renderer(item)))
-            elif "richSectionRenderer" in item:
-                urls.extend([
-                    full_url(u)
-                    for u in parse_section_renderer(item)
-                ])
-    except Exception as e:
-        logger.error(f'Unable to get channels due to exception: {e}')
+        try:
+            for item in self.yt_initial_data["contents"]\
+                                            ["twoColumnBrowseResultsRenderer"]\
+                                            ["tabs"][0]\
+                                            ["tabRenderer"]\
+                                            ["content"]\
+                                            ["richGridRenderer"]\
+                                            ["contents"]\
+            :
+                if "richItemRenderer" in item:
+                    urls.append(full_url(YTChannel.parse_item_renderer(item)))
+                elif "richSectionRenderer" in item:
+                    urls.extend([
+                        full_url(u)
+                        for u in YTChannel.parse_section_renderer(item)
+                    ])
+        except Exception as e:
+            logger.error(f'Unable to get channels due to exception: {e}')
 
-    return list(set(urls))
+        return list(set(urls))
 
+    def get_featured_channels(self) -> List[str]:
+        '''Get list of featured channels for given channel.
 
-def get_featured_channels(yt_initial_data: Dict[str, Any]) -> List[str]:
-    '''Get list of featured channels for given channel.
+        Args:
+            channel_url: channel url.
+        
+        Returs: 
+            List of featured channel urls.
 
-    Args:
-        channel_url: channel url.
-    
-    Returs: 
-        List of featured channel urls.
+        '''
+        featured_channels = []
 
-    '''
-    featured_channels = []
+        try:
+            featured_channels = [
+                f'https://www.youtube.com{item["miniChannelRenderer"]["navigationEndpoint"]["commandMetadata"]["webCommandMetadata"]["url"]}'
+                for item in self.yt_initial_data["contents"]["twoColumnBrowseResultsRenderer"]["secondaryContents"]["browseSecondaryContentsRenderer"]["contents"][0]["verticalChannelSectionRenderer"]["items"]
+            ]
+        except Exception as e:
+            logger.error(f'Unable to get featured channels due to exception {e}')
+        
+        return list(set(featured_channels))
 
-    try:
-        featured_channels = [
-            f'https://www.youtube.com{item["miniChannelRenderer"]["navigationEndpoint"]["commandMetadata"]["webCommandMetadata"]["url"]}'
-            for item in yt_initial_data["contents"]["twoColumnBrowseResultsRenderer"]["secondaryContents"]["browseSecondaryContentsRenderer"]["contents"][0]["verticalChannelSectionRenderer"]["items"]
-        ]
-    except Exception as e:
-        logger.error(f'Unable to get featured channels due to exception {e}')
-    
-    return list(set(featured_channels))
+    def get_tags(self) -> List[str]:
+        tags = []
 
+        try:
+            tags = self.yt_initial_data["microformat"]["microformatDataRenderer"]["tags"]
+        except Exception as e:
+            logger.error(f'Unable to get tags. Exception caught: {e}')
 
-def get_tags(yt_initial_data: Dict[str, Any]) -> List[str]:
-    tags = []
+        return tags
 
-    try:
-        tags = yt_initial_data["microformat"]["microformatDataRenderer"]["tags"]
-    except Exception as e:
-        logger.error(f'Unable to get tags. Exception caught: {e}')
+    def get_subscription_count(self) -> str:
+        return self.yt_initial_data["header"]["c4TabbedHeaderRenderer"]["subscriberCountText"]["simpleText"]
 
-    return tags
+    def get_description(self) -> str:
+        return self.yt_initial_data["metadata"]["channelMetadataRenderer"]["description"]
 
-
-def get_subscription_count(yt_initial_data: Dict[str, Any]) -> str:
-    return yt_initial_data["header"]["c4TabbedHeaderRenderer"]["subscriberCountText"]["simpleText"]
-
-
-def get_description(yt_initial_data: Dict[str, Any]) -> str:
-    return yt_initial_data["metadata"]["channelMetadataRenderer"]["description"]
-
-
-def detect_language(text: str) -> str:
-    return langdetect.detect(text)
+    @staticmethod
+    def detect_language(text: str) -> str:
+        return langdetect.detect(text)
 
 
 def remove_duplicate(filename):
@@ -207,16 +222,16 @@ def create_temp() -> None:
             os.makedirs('Temp/' + subdir)
 
 if __name__ == "__main__":
-    yt_initial_data = get_initial_data('https://www.youtube.com/c/javidx9')
+    channel = YTChannel('https://www.youtube.com/c/javidx9')
 
     print('Featured channels:')
-    print(json.dumps(get_featured_channels(yt_initial_data), indent=4))
+    print(json.dumps(channel.featured_channels, indent=4))
 
     print('Tags:')
-    print(json.dumps(get_tags(yt_initial_data), indent=4))
+    print(json.dumps(channel.tags, indent=4))
 
     print('Subscription count:')
-    print(f'    {get_subscription_count(yt_initial_data)}')
+    print(f'    {channel.subscription_count}')
 
     print('Language:')
-    print(f'    {detect_language(get_description(yt_initial_data))}')
+    print(f'    {channel.lang}')

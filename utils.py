@@ -26,6 +26,15 @@ class YTChannel:
         self.subscription_count = self.get_subscription_count()
         self.tags = self.get_tags()
         self.featured_channels = self.get_featured_channels()
+    
+    def as_dict(self):
+        return {
+            self.url: {
+                "tags": ','.join(self.tags),
+                "lang": self.lang,
+                "sub_count": self.subscription_count,
+            }
+        }
 
     @staticmethod
     def full_url(relative_url: str) -> str:
@@ -71,7 +80,7 @@ class YTChannel:
                                              ["richShelfRenderer"]\
                                              ["contents"]\
         :
-            urls.append(parse_item_renderer(item_renderer))
+            urls.append(YTChannel.parse_item_renderer(item_renderer))
         
         return urls
 
@@ -83,19 +92,19 @@ class YTChannel:
         yt_initial_data, _ = YTChannel.get_initial_data('https://www.youtube.com')
 
         try:
-            for item in self.yt_initial_data["contents"]\
-                                            ["twoColumnBrowseResultsRenderer"]\
-                                            ["tabs"][0]\
-                                            ["tabRenderer"]\
-                                            ["content"]\
-                                            ["richGridRenderer"]\
-                                            ["contents"]\
+            for item in yt_initial_data["contents"]\
+                                       ["twoColumnBrowseResultsRenderer"]\
+                                       ["tabs"][0]\
+                                       ["tabRenderer"]\
+                                       ["content"]\
+                                       ["richGridRenderer"]\
+                                       ["contents"]\
             :
                 if "richItemRenderer" in item:
-                    urls.append(full_url(YTChannel.parse_item_renderer(item)))
+                    urls.append(YTChannel.full_url(YTChannel.parse_item_renderer(item)))
                 elif "richSectionRenderer" in item:
                     urls.extend([
-                        full_url(u)
+                        YTChannel.full_url(u)
                         for u in YTChannel.parse_section_renderer(item)
                     ])
         except Exception as e:
@@ -222,6 +231,10 @@ def create_temp() -> None:
             os.makedirs('Temp/' + subdir)
 
 if __name__ == "__main__":
+    default_seeds = YTChannel.get_default_seeds()
+    print(json.dumps(default_seeds, indent=4))
+    exit()
+
     channel = YTChannel('https://www.youtube.com/c/javidx9')
 
     print('Featured channels:')

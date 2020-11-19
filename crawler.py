@@ -6,85 +6,8 @@ import time
 import multiprocessing as mp
 from Nikita.web import getlang
 
-def get_default_seeds():
-    '''Get list of default channels from www.youtube.com and return it.'''
-    # open website
-    website = request.urlopen('https://www.youtube.com', context=ssl._create_unverified_context()).read()
-    # create instance of BS to search throught webpage
-    soup = BeautifulSoup(website, 'html.parser')
-    # search for html tags that contain channel urls
-    classes = soup.find_all("div", class_ = "yt-lockup-byline yt-ui-ellipsis yt-ui-ellipsis-2")
-    # extract urls
-    urls = set('https://www.youtube.com' + c.find('a')['href'] for c in classes)
+from utils import *
 
-    return list(urls)
-
-def remove_duplicate(filename):
-    '''Open file with data and remove duplicate records.
-
-        filename: file's path to remove duplicates from.
-    '''
-    # dictionary with keys given by urls and values given by the rest of the information
-    data = dict()
-    # read data from file and write to the dictionary
-    with open(filename, 'r', encoding='utf-8') as inp:
-        for line in inp:
-            data[line.split(';')[0]] = line
-    # rewrite file with new data
-    with open(filename, 'w', encoding='utf-8') as out:
-        for key, val in data.items():
-            out.write(val)
-
-def combine(filename1, filename2, output):
-    '''Combine two lists of channel urls.
-
-        filename1, filename2: file's paths to combine lists from.
-
-        output: path of the resulting file.
-    '''
-    # final set of urls
-    curr = set()
-    # read urls from first file
-    with open(filename1, 'r') as inp_1:
-        for line in inp_1:
-            curr.add(line)
-    # read urls from second file
-    with open(filename2, 'r') as inp_2:
-        for line in inp_2:
-            curr.add(line)
-    # write urls to output file
-    with open(output, 'w') as out:
-        for elem in curr:
-            out.write(elem)
-
-def repl(s, *chars):
-    '''Auxiliary funtion to replace some characters with whitespaces.
-
-        s: string to modify.
-
-        chars: characters to be replaced.
-    '''
-    # create copy of the string
-    ss = s[:]
-    if chars:
-        # replace all characters from 'chars' with whitespaces
-        for c in chars:
-            ss = ss.replace(c, ' ')
-        return ss
-
-    # default replacement
-    return s.replace(';', ' ').replace('\n', ' ').replace('\r', ' ').replace(',', ' ')
-
-def create_temp():
-    '''Create folder 'Temp' with subfolders to store information
-    collected by each process before it'll be combined into one file.'''
-    # create Temp if doesn't exist
-    if not os.path.exists('Temp'):
-        os.makedirs('Temp')
-    # create subfolders
-    for subdir in ['ChannelsWithData', 'NewChannels', 'Skipped']:
-        if not os.path.exists('Temp/' + subdir):
-            os.makedirs('Temp/' + subdir)
 
 def initialization():
     '''Read previously collected channels and set it as seeds for crawling processes.'''
@@ -307,6 +230,7 @@ def find_similar(num, seeds, new_seeds, skips, keys, logs, started_processes):
         print('Process ' + str(num) + ' finished:\n    ' + str(len(users)) + ' channels found')
         print('=======================================')
 
+
 def summary():
     '''Save results and give brief summary of the work done: number new and skipped channels, time of execution.'''
     '''---Save logs---'''
@@ -415,6 +339,7 @@ def summary():
     # with open('crawler.py', 'w') as output:
     #     output.write(code)
 
+
 def start_processes():
     '''Start crawling processes.'''
     global processes
@@ -430,6 +355,7 @@ def start_processes():
             parser_proc.start()
         for proc in processes:
             proc.join()
+
 
 if __name__ == "__main__":
     initialization()

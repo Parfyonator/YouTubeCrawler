@@ -4,6 +4,7 @@ from time import time
 import json
 from typing import List, Dict, Any
 from logging import getLogger
+import argparse
 
 import pandas as pd
 
@@ -31,10 +32,16 @@ def save_data(data: Dict[str, Any]) -> None:
     for k, v in data.items():
         df = df.append({'url': k, **v}, ignore_index=True)
 
+    if not os.path.isdir('results'):
+        os.mkdir('results')
     df.to_csv(f'results/channels.csv', index=False, sep=';')
 
 
 if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-s', '--seeds', required=False, help="path to file with custom seed channels")
+    args = vars(ap.parse_args())
+
     n_proc = 8
     n_iterations = 6
 
@@ -44,9 +51,13 @@ if __name__ == "__main__":
     prev_channels = set()
     next_channels = set()
 
-    if os.path.isfile('results/seeds.txt'):
-        with open('results/seeds.txt', 'r') as f:
-            seeds = [line.strip() for line in f.readlines()]
+    if args['seeds']:
+        if os.path.isfile(args['seeds']):
+            with open(args['seeds'], 'r') as f:
+                seeds = [line.strip() for line in f.readlines()]
+        else:
+            print('[ERROR] Given seeds file is invalid.')
+            exit()
     else:
         seeds = YTChannel.get_default_seeds()
     print('Number of seeds:', len(seeds))

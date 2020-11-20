@@ -2,19 +2,27 @@ import multiprocessing as mp
 from time import time
 import json
 from typing import List, Dict, Any
+from logging import getLogger
 
 from utils import YTChannel, split_even
 
 
+logger = getLogger(__name__)
+
+
 def get_similar(channel_urls: List[str], data: Dict[str, Any], channel_list):
     for url in channel_urls:
-        channel = YTChannel(url)
+        try:
+            channel = YTChannel(url)
+        except Exception as e:
+            logger.error(e)
+            return
         data.update(channel.as_dict())
         channel_list.extend(channel.featured_channels)
 
 
 if __name__ == "__main__":
-    n_proc = 8
+    n_proc = 12
     n_iterations = 4
 
     manager = mp.Manager()

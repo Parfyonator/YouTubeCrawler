@@ -1,5 +1,6 @@
 import ssl
 from urllib import request
+from time import sleep
 import json
 from typing import List, Dict, Any, Tuple
 from logging import getLogger
@@ -54,14 +55,31 @@ class YTChannel:
 
     @staticmethod
     def get_initial_data(url: str) -> Tuple[Dict[str, Any], BeautifulSoup]:
-        response = request.urlopen(url, context=ssl._create_unverified_context())
+        for _ in range(3):
+            response = request.urlopen(url, context=ssl._create_unverified_context())
+            if response.code == 200:
+                break
+            sleep(1)
+        # if the page cannot be loaded raise an exception
+        if response.code != 200:
+            raise Exception(f'Cannot get page {url}: {response.code}')
         content = response.read()
 
         soup = BeautifulSoup(content, 'html.parser')
 
         body = soup.find("body")
         scripts = body.find_all("script")
-        initial_data_script = scripts[1].contents[0].strip()
+        # find script with required data
+        idx = -1
+        for i, script in enumerate(scripts):
+            if script.contents and 'window["ytInitialData"]' in script.decode_contents():
+                idx = i
+                break
+        # raise an exception if the initial data is not found
+        if idx < 0:
+            raise Exception(f'Cannot find initial data for page {url}')
+
+        initial_data_script = scripts[idx].decode_contents().strip()
         first_line = initial_data_script.split('\n')[0]
         rhs = first_line[first_line.find('=')+1:].strip()
         rhs = rhs[:-1] # remove ';' at the end

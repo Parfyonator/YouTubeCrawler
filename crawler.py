@@ -4,6 +4,8 @@ import json
 from typing import List, Dict, Any
 from logging import getLogger
 
+import pandas as pd
+
 from utils import YTChannel, split_even
 
 
@@ -19,6 +21,16 @@ def get_similar(channel_urls: List[str], data: Dict[str, Any], channel_list):
             return
         data.update(channel.as_dict())
         channel_list.extend(channel.featured_channels)
+
+
+def save_data(data: Dict[str, Any]) -> None:
+    random_key = list(data.keys())[0]
+    df = pd.DataFrame(columns=['url', *data[random_key].keys()])
+
+    for k, v in data.items():
+        df = df.append({'url': k, **v}, ignore_index=True)
+
+    df.to_csv(f'results/channels.csv', index=False, sep=';')
 
 
 if __name__ == "__main__":
@@ -53,6 +65,9 @@ if __name__ == "__main__":
         next_channels = set(channel_list) - prev_channels
 
     data = dict(data)
+    # save data
+    save_data(data)
+    
     print(f'Data {len(data)}:')
     print(json.dumps(data, indent=4))
 

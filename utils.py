@@ -66,7 +66,7 @@ class YTChannel:
         rhs = first_line[first_line.find('=')+1:].strip()
         rhs = rhs[:-1] # remove ';' at the end
         
-        return json.loads(rhs), soup
+        return json.loads(rhs, encoding='utf-8'), soup
 
     @staticmethod
     def parse_section_renderer(section_renderer: Dict[str, Any]) -> List[str]:
@@ -145,13 +145,34 @@ class YTChannel:
         return tags
 
     def get_subscription_count(self) -> str:
-        return self.yt_initial_data["header"]["c4TabbedHeaderRenderer"]["subscriberCountText"]["simpleText"]
+        sub_count = ''
+        
+        try:
+            sub_count = self.yt_initial_data["header"]["c4TabbedHeaderRenderer"]["subscriberCountText"]["simpleText"]
+        except Exception as e:
+            logger.error(f'Unable to get subscription count. Exception caught: {e}')
+        
+        return sub_count
 
     def get_description(self) -> str:
-        return self.yt_initial_data["metadata"]["channelMetadataRenderer"]["description"]
+        description = ''
+
+        try:
+            description = self.yt_initial_data["metadata"]["channelMetadataRenderer"]["description"]
+        except Exception as e:
+            logger.error(f'Unable to get description. Exception caught: {e}')
+
+        return description
 
     def detect_language(self) -> str:
-        return langdetect.detect(self.get_description())
+        lang = '--'
+        
+        try:
+            lang = langdetect.detect(self.get_description())
+        except Exception as e:
+            logger.error(f'Unable to detect language. Exception caught: {e}')
+
+        return lang
 
 
 def remove_duplicate(filename):

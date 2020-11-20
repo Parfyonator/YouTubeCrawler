@@ -9,7 +9,7 @@ from utils import YTChannel
 def get_similar(channel_urls: List[str], data: Dict[str, Any], channel_list):
     for url in channel_urls:
         channel = YTChannel(url)
-        data[url] = channel.as_dict()
+        data.update(channel.as_dict())
         channel_list.extend(channel.featured_channels)
 
 
@@ -30,7 +30,10 @@ if __name__ == "__main__":
 
     prev_channels = set()
     next_channels = set()
+
     seeds = YTChannel.get_default_seeds()
+    print('Number of default seeds:', len(seeds))
+    
     next_channels.update(seeds)
 
     for _ in range(n_iterations):
@@ -50,9 +53,9 @@ if __name__ == "__main__":
         next_channels = set(channel_list) - prev_channels
 
     data = dict(data)
-    print('Data:')
+    print(f'Data {len(data)}:')
     print(json.dumps(data, indent=4))
 
     new_channels = list(prev_channels.union(next_channels))
-    print('New channels:')
+    print(f'New channels {len(new_channels)}:')
     print(json.dumps(new_channels, indent=4))

@@ -114,13 +114,6 @@ class YTChannel:
 
     def get_featured_channels(self) -> List[str]:
         '''Get list of featured channels for given channel.
-
-        Args:
-            channel_url: channel url.
-        
-        Returs: 
-            List of featured channel urls.
-
         '''
         featured_channels = []
 

@@ -3,7 +3,7 @@ from time import time
 import json
 from typing import List, Dict, Any
 
-from utils import YTChannel
+from utils import YTChannel, split_even
 
 
 def get_similar(channel_urls: List[str], data: Dict[str, Any], channel_list):
@@ -11,14 +11,6 @@ def get_similar(channel_urls: List[str], data: Dict[str, Any], channel_list):
         channel = YTChannel(url)
         data.update(channel.as_dict())
         channel_list.extend(channel.featured_channels)
-
-
-def split_even(l: List[str], n: int) -> List[List[str]]:
-    ch_size = len(l) // n
-    return [
-        l[i * ch_size:min((i+1) * ch_size, len(l))]
-        for i in range(n)
-    ]
 
 
 if __name__ == "__main__":

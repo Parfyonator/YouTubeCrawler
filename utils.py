@@ -250,6 +250,25 @@ def create_temp() -> None:
         if not os.path.exists('Temp/' + subdir):
             os.makedirs('Temp/' + subdir)
 
+
+def split_even(l: List[Any], n: int) -> List[List[Any]]:
+    '''Split given list into given number of even parts.
+
+    Args:
+        l: list
+        n: number of parts
+    
+    Returns:
+        Lists of lists (chunks).
+
+    '''
+    ch_size = len(l) // n
+    return [
+        l[i * ch_size:min((i+1) * ch_size, len(l))]
+        for i in range(n)
+    ]
+
+
 if __name__ == "__main__":
     # get default seeds
     default_seeds = YTChannel.get_default_seeds()

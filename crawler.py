@@ -1,3 +1,4 @@
+import os
 import multiprocessing as mp
 from time import time
 import json
@@ -34,8 +35,8 @@ def save_data(data: Dict[str, Any]) -> None:
 
 
 if __name__ == "__main__":
-    n_proc = 12
-    n_iterations = 4
+    n_proc = 8
+    n_iterations = 6
 
     manager = mp.Manager()
     data = manager.dict()
@@ -43,8 +44,12 @@ if __name__ == "__main__":
     prev_channels = set()
     next_channels = set()
 
-    seeds = YTChannel.get_default_seeds()
-    print('Number of default seeds:', len(seeds))
+    if os.path.isfile('results/seeds.txt'):
+        with open('results/seeds.txt', 'r') as f:
+            seeds = [line.strip() for line in f.readlines()]
+    else:
+        seeds = YTChannel.get_default_seeds()
+    print('Number of seeds:', len(seeds))
     
     next_channels.update(seeds)
 

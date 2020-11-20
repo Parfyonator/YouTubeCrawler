@@ -22,7 +22,7 @@ class YTChannel:
 
         self.url = channel_url
         self.description = self.get_description()
-        self.lang = YTChannel.detect_language(self.description)
+        self.lang = self.detect_language()
         self.subscription_count = self.get_subscription_count()
         self.tags = self.get_tags()
         self.featured_channels = self.get_featured_channels()
@@ -150,9 +150,8 @@ class YTChannel:
     def get_description(self) -> str:
         return self.yt_initial_data["metadata"]["channelMetadataRenderer"]["description"]
 
-    @staticmethod
-    def detect_language(text: str) -> str:
-        return langdetect.detect(text)
+    def detect_language(self) -> str:
+        return langdetect.detect(self.get_description())
 
 
 def remove_duplicate(filename):
@@ -231,10 +230,11 @@ def create_temp() -> None:
             os.makedirs('Temp/' + subdir)
 
 if __name__ == "__main__":
+    # get default seeds
     default_seeds = YTChannel.get_default_seeds()
     print(json.dumps(default_seeds, indent=4))
-    exit()
 
+    # get data for given channel
     channel = YTChannel('https://www.youtube.com/c/javidx9')
 
     print('Featured channels:')
